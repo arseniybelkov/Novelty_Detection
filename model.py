@@ -24,7 +24,7 @@ class Detector(torch.nn.Module):
 
 class R_Net(torch.nn.Module):
 
-	def __init__(self, activation = torch.nn.SELU, , in_channels = 3, n_channels = 64, kernel_size = 5, std = 1):
+	def __init__(self, activation = torch.nn.SELU, in_channels = 3, n_channels = 64, kernel_size = 5, std = 1):
 
 		super(R_Net, self).__init__()
 
@@ -119,7 +119,7 @@ class D_Net(torch.nn.Module):
 
 		x = self.cnn(x)
 		x = torch.flatten(x, dim = 1)
-		x = self.bn5(.self.activation(self.fc1(x)))
+		x = self.bn5(self.activation(self.fc1(x)))
 		out = torch.nn.Sigmoid(self.fc2(x))
 
 		return out
