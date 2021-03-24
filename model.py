@@ -1,5 +1,5 @@
 import torch
-
+import torch.nn.functional as F
 
 class R_Net(torch.nn.Module):
 
@@ -120,7 +120,7 @@ def loss(y_real, y_fake, lambd = 0.4, R_loss = F.mse_loss):
 	d_real_loss = F.cross_entropy(y_real, ones)
 
 	zeros = torch.zeros(len(y_real), dtype = torch.long, device = device)
-	d_fake_loss = F.cross_entropy(y_fakem zeros)
+	d_fake_loss = F.cross_entropy(y_fake, zeros)
 
 	rd_loss = d_real_loss + d_fake_loss
 
