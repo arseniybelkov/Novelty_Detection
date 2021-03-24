@@ -1,6 +1,27 @@
 import torch
 import torch.nn.functional as F
 
+
+class Detector(torch.nn.Module):
+
+	def __init__(self, r_params : dict, d_params : dict):
+
+		super(Detector, self).__init__()
+
+		self.r_params = r_params
+		self.d_params = d_params
+
+		self.r_net = R_Net(**self.r_params)
+		self.d_net = D_Net(**self.d_params)
+
+	def forward(self, x, real = True):
+
+		x = x if real else self.r_net(x)
+		x = self.d_net(x)
+
+		return x
+
+
 class R_Net(torch.nn.Module):
 
 	def __init__(self, activation = torch.nn.SELU, , in_channels = 3, n_channels = 64, kernel_size = 5, std = 1):
@@ -66,10 +87,11 @@ class R_Net(torch.nn.Module):
 
 class D_Net(torch.nn.Module):
 
-	def __init__(self, in_resolution, in_channels = 3, n_channels = 64, kernel_size = 5):
+	def __init__(self, in_resolution, activation = torch.nn.SELU, in_channels = 3, n_channels = 64, kernel_size = 5):
 
 		super(D_Net, self).__init__()
 
+		self.activation = activation
 		self.in_resolution = in_resolution
 		self.in_channels = in_channels
 		self.n_c = n_channels
