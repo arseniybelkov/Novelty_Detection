@@ -57,7 +57,8 @@ class R_Net(torch.nn.Module):
 											self.activation(),
 											torch.nn.BatchNorm2d(self.n_c),
 											torch.nn.ConvTranspose2d(self.n_c, self.in_channels, self.k_size),
-											self.activation()])
+											self.activation(),
+											torch.nn.BatchNorm2d(self.in_channels)])
 
 	def forward(self, x):
 
