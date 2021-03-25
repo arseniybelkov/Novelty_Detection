@@ -34,22 +34,30 @@ class R_Net(torch.nn.Module):
 		self.k_size = kernel_size
 		self.std = std
 
-		self.enconv1 = torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size)
-		self.en_bn1 = torch.nn.BatchNorm2d(self.n_c)
-		self.enconv2 = torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size)
-		self.en_bn2 = torch.nn.BatchNorm2d(self.n_c*2)
-		self.enconv3 = torch.nn.Conv2d(self.n_c*2, self.n_c*4, self.k_size)
-		self.en_bn3 = torch.nn.BatchNorm2d(self.n_c*4)
-		self.enconv4 = torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size)
-		self.en_bn4 = torch.nn.BatchNorm2d(self.n_c*8)
+		self.Encoder = torch.nn.ModuleList([torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c),
+										 	torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size),
+										 	self.activation(),
+										 	torch.nn.BatchNorm2d(self.n_c*2),
+										 	torch.nn.Conv2d(self.n_c*2, self.n_c*4, self.k_size),
+										 	self.activation(),
+										 	torch.nn.BatchNorm2d(self.n_c*4),
+										 	torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size),
+										 	self.activation(),
+										 	torch.nn.BatchNorm2d(self.n_c*8)])
 
-		self.deconv1 = torch.nn.ConvTranspose2d(self.n_c*8, self.n_c*4, self.k_size)
-		self.de_bn1 = torch.nn.BatchNorm2d(self.n_c*4)
-		self.deconv2 = torch.nn.ConvTranspose2d(self.n_c*4, self.n_c*2, self.k_size)
-		self.de_bn2 = torch.nn.BatchNorm2d(self.n_c*2)
-		self.deconv3 = torch.nn.ConvTranspose2d(self.n_c*2, self.n_c, self.k_size)
-		self.de_bn3 = torch.nn.BatchNorm2d(self.n_c)
-		self.deconv4 = torch.nn.ConvTranspose2d(self.n_c, self.in_channels, self.k_size)
+		self.Decoder = torch.nn.ModuleList([torch.nn.ConvTranspose2d(self.n_c*8, self.n_c*4, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c*4),
+											torch.nn.ConvTranspose2d(self.n_c*4, self.n_c*2, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c*2),
+											torch.nn.ConvTranspose2d(self.n_c*2, self.n_c, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c),
+											torch.nn.ConvTranspose2d(self.n_c, self.in_channels, self.k_size),
+											self.activation()])
 
 	def forward(self, x):
 
@@ -68,19 +76,19 @@ class R_Net(torch.nn.Module):
 
 	def encoder(self, x):
 
-		x = self.en_bn1(self.activation(self.enconv1(x)))
-		x = self.en_bn2(self.activation(self.enconv2(x)))
-		x = self.en_bn3(self.activation(self.enconv3(x)))
-		z = self.en_bn4(self.activation(self.enconv4(x)))
+		z = x
+
+		for en_layer in self.Encoder:
+			z = en_layer(z)
 
 		return z
 
 	def decoder(self, z):
 
-		z = torch.de_bn1(self.activation(self.deconv1(x)))
-		z = torch.de_bn2(self.activation(self.deconv2(x)))
-		z = torch.de_bn3(self.activation(self.deconv3(x)))
-		x_out = self.activation(self.deconv4(x))
+		x_out = z
+
+		for de_layer in self.Decoder:
+			x_out = de_layer(x_out)
 
 		return x_out
 
@@ -97,19 +105,35 @@ class D_Net(torch.nn.Module):
 		self.n_c = n_channels
 		self.k_size = kernel_size
 
-		self.conv1 = torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size)
-		self.bn1 = torch.nn.BatchNorm2d(self.n_c)
-		self.conv2 = torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size)
-		self.bn2 = torch.nn.BatchNorm2d(self.n_c*2)
-		self.conv3 = torch.nn.Conv2d(self.n_c*2, self.n_c*4, self.k_size)
-		self.bn3 = torch.nn.BatchNorm2d(self.n_c*4)
-		self.conv4 = torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size)
-		self.bn4 = torch.nn.BatchNorm2d(self.n_c*8)
+		self.cnn = torch.nn.ModuleList([torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size),
+										self.activation(),
+										torch.nn.BatchNorm2d(self.n_c),
+										torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size),
+										self.activation(),
+										torch.nn.BatchNorm2d(self.n_c*2),
+										torch.nn.Conv2d(self.n_c*2, self.n_c*4, self.k_size),
+										self.activation(),
+										torch.nn.BatchNorm2d(self.n_c*4),
+										torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size),
+										self.activation(),
+										torch.nn.BatchNorm2d(self.n_c*8)])
 
 		# Compute output dimension after conv part of D network
-		test_x = torch.Tensor(1, self.in_channels, self.in_resolution[0], self.in_resolution[1])
-		out = self.cnn(test_x)
-		self.out_dim =  torch.prod(torch.tensor(out.shape[1:])).item()
+		def _compute_out_dim():
+			test_x = torch.Tensor(1, self.in_channels, self.in_resolution[0], self.in_resolution[1])
+			for cnn_layer in self.cnn:
+				for p in cnn_layers.parameters():
+					p.requires_grad = False
+			for cnn_layer in self.cnn:
+				test_x  = cnn_layer(test_x)
+			out_dim =  torch.prod(torch.tensor(test_x.shape[1:])).item()
+			for cnn_layer in self.cnn:
+				for p in cnn_layers.parameters():
+					p.requires_grad = True
+
+			return out_dim
+
+		self.out_dim = _compute_out_dim()
 
 		self.fc1 = torch.nn.Linear(self.out_dim, 1024)
 		self.bn5 = torch.nn.BatchNorm1d(1024)
@@ -117,21 +141,14 @@ class D_Net(torch.nn.Module):
 
 	def forward(self, x):
 
-		x = self.cnn(x)
+		for cnn_layer in self.cnn:
+			x = cnn_layer(x)
+
 		x = torch.flatten(x, dim = 1)
 		x = self.bn5(self.activation(self.fc1(x)))
 		out = torch.nn.Sigmoid(self.fc2(x))
 
 		return out
-
-	def cnn(self, x):
-
-		x = self.bn1(self.activation(self.conv1(x)))
-		x = self.bn2(self.activation(self.conv2(x)))
-		x = self.bn3(self.activation(self.conv3(x)))
-		x = self.bn4(self.activation(self.conv4(x)))
-
-		return x
 
 
 def loss(y_real, y_fake, lambd = 0.4, R_loss = F.mse_loss):
