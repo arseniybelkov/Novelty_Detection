@@ -24,7 +24,7 @@ class Detector(torch.nn.Module):
 
 class R_Net(torch.nn.Module):
 
-	def __init__(self, activation = torch.nn.SELU, in_channels = 3, n_channels = 64, kernel_size = 5, std = 1):
+	def __init__(self, activation = torch.nn.SELU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5, std = 1):
 
 		super(R_Net, self).__init__()
 
@@ -95,7 +95,7 @@ class R_Net(torch.nn.Module):
 
 class D_Net(torch.nn.Module):
 
-	def __init__(self, in_resolution, activation = torch.nn.SELU, in_channels = 3, n_channels = 64, kernel_size = 5):
+	def __init__(self, in_resolution:tuple, activation = torch.nn.SELU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5):
 
 		super(D_Net, self).__init__()
 
