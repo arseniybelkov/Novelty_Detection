@@ -135,18 +135,22 @@ class D_Net(torch.nn.Module):
 
 		self.out_dim = _compute_out_dim()
 
-		self.fc1 = torch.nn.Linear(self.out_dim, 1024)
-		self.bn5 = torch.nn.BatchNorm1d(1024)
-		self.fc2 = torch.nn.Linear(1024, 1)
+		self.fc = torch.nn.ModuleList([torch.nn.Linear(self.out_dim, 1024),
+										self.activation(),
+										torch.nn.BatchNorm1d(1024),
+										self.activation(),
+										torch.nn.Linear(1024, 1),
+										torch.nn.Sigmoid()])
 
 	def forward(self, x):
 
 		for cnn_layer in self.cnn:
 			x = cnn_layer(x)
 
-		x = torch.flatten(x, dim = 1)
-		x = self.bn5(self.activation(self.fc1(x)))
-		out = torch.nn.Sigmoid(self.fc2(x))
+		out = torch.flatten(x, dim = 1)
+
+		for fc_layer in self.fc:
+			out = fc_layer(out)
 
 		return out
 
