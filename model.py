@@ -37,15 +37,15 @@ class R_Net(torch.nn.Module):
 		self.Encoder = torch.nn.ModuleList([torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size),
 											self.activation(),
 											torch.nn.BatchNorm2d(self.n_c),
-										 	torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size),
-										 	self.activation(),
-										 	torch.nn.BatchNorm2d(self.n_c*2),
-										 	torch.nn.Conv2d(self.n_c*2, self.n_c*4, self.k_size),
-										 	self.activation(),
-										 	torch.nn.BatchNorm2d(self.n_c*4),
-										 	torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size),
-										 	self.activation(),
-										 	torch.nn.BatchNorm2d(self.n_c*8)])
+											torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c*2),
+											torch.nn.Conv2d(self.n_c*2, self.n_c*4, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c*4),
+											torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size),
+											self.activation(),
+											torch.nn.BatchNorm2d(self.n_c*8)])
 
 		self.Decoder = torch.nn.ModuleList([torch.nn.ConvTranspose2d(self.n_c*8, self.n_c*4, self.k_size),
 											self.activation(),
@@ -163,7 +163,7 @@ def loss(p, y, x, rec_x, lambd = 0.4, R_loss = F.mse_loss):
 	loss['Lr'] = R_loss(x, rec_x, reduction = 'mean')
 
 	loss['Lr+d'] = F.cross_entropy(p, y)
-	
+
 	loss['L'] = loss['Lr+d'] + lambd * loss['Lr']
 
 	return loss
