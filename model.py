@@ -120,21 +120,8 @@ class D_Net(torch.nn.Module):
 										torch.nn.BatchNorm2d(self.n_c*8)])
 
 		# Compute output dimension after conv part of D network
-		def _compute_out_dim():
-			test_x = torch.Tensor(1, self.in_channels, self.in_resolution[0], self.in_resolution[1])
-			for cnn_layer in self.cnn:
-				for p in cnn_layers.parameters():
-					p.requires_grad = False
-			for cnn_layer in self.cnn:
-				test_x  = cnn_layer(test_x)
-			out_dim =  torch.prod(torch.tensor(test_x.shape[1:])).item()
-			for cnn_layer in self.cnn:
-				for p in cnn_layers.parameters():
-					p.requires_grad = True
 
-			return out_dim
-
-		self.out_dim = _compute_out_dim()
+		self.out_dim = self._compute_out_dim()
 
 		self.fc = torch.nn.ModuleList([torch.nn.Linear(self.out_dim, 1024),
 										self.activation(),
@@ -142,6 +129,19 @@ class D_Net(torch.nn.Module):
 										self.activation(),
 										torch.nn.Linear(1024, 1),
 										torch.nn.Sigmoid()])
+
+	def _compute_out_dim(self):
+		
+		test_x = torch.Tensor(1, self.in_channels, self.in_resolution[0], self.in_resolution[1])
+		for p in self.cnn.parameters():
+			p.requires_grad = False
+		for cnn_layer in self.cnn:
+			test_x  = cnn_layer(test_x)
+		out_dim =  torch.prod(torch.tensor(test_x.shape[1:])).item()
+		for p in cnn_layers.parameters():
+			p.requires_grad = True
+
+		return out_dim
 
 	def forward(self, x):
 
@@ -156,16 +156,14 @@ class D_Net(torch.nn.Module):
 		return out
 
 
-def loss(y_real, y_fake, lambd = 0.4, R_loss = F.mse_loss):
+def loss(p, y, x, rec_x, lambd = 0.4, R_loss = F.mse_loss):
 
-	r_loss = R_loss(x, r_x, reduction = 'mean')
+	loss = {'Lr' : 0, 'Lr+d' : 0, 'L' : 0}
 
-	ones = torch.ones(len(y_real), dtype = torch.long, device = device)
-	d_real_loss = F.cross_entropy(y_real, ones)
+	loss['Lr'] = R_loss(x, rec_x, reduction = 'mean')
 
-	zeros = torch.zeros(len(y_real), dtype = torch.long, device = device)
-	d_fake_loss = F.cross_entropy(y_fake, zeros)
+	loss['Lr+d'] = F.cross_entropy(p, y)
+	
+	loss['L'] = loss['Lr+d'] + lambd * loss['Lr']
 
-	rd_loss = d_real_loss + d_fake_loss
-
-	return rd_loss + lambd * r_loss 
+	return loss
