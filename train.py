@@ -1,6 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 
+
 def train_model(r_net: torch.nn.Module,
 				d_net: torch.nn.Module,
 				train_dataset: torch.utils.data.Dataset,
@@ -19,7 +20,7 @@ def train_model(r_net: torch.nn.Module,
 	optim_r = torch.optim.Adam(r_net.parameters(), lr = learning_rate, **optim_r_params)
 	optim_d = torch.optim.Adam(d_net.parameters(), lr = learning_rate, **optim_d_params)
 
-	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True)
+	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True, num_workers = 2)
 	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size)
 
 	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []},
@@ -27,15 +28,15 @@ def train_model(r_net: torch.nn.Module,
 
 	for epoch in range(max_epochs):
 
-		avg_train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd, device)
-		avg_valid_metrics = validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, device)
+		train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd, device)
+		valid_metrics = validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device)
 
-		metrics['train']['rec_loss'].append(avg_train_metrics['rec_loss'].item())
-		metrics['train']['gen_loss'].append(avg_train_metrics['gen_loss'].item())
-		metrics['train']['dis_loss'].append(avg_train_metrics['dis_loss'].item())
-		metrics['valid']['rec_loss'].append(avg_valid_metrics['rec_loss'].iten())
-		metrics['valid']['gen_loss'].append(avg_valid_metrics['gen_loss'].item())
-		metrics['valid']['dis_loss'].append(avg_valid_metrics['dis_loss'].item())
+		metrics['train']['rec_loss'].append(train_metrics['rec_loss'].item())
+		metrics['train']['gen_loss'].append(train_metrics['gen_loss'].item())
+		metrics['train']['dis_loss'].append(train_metrics['dis_loss'].item())
+		metrics['valid']['rec_loss'].append(valid_metrics['rec_loss'].iten())
+		metrics['valid']['gen_loss'].append(valid_metrics['gen_loss'].item())
+		metrics['valid']['dis_loss'].append(valid_metrics['dis_loss'].item())
 
 		if epoch % 10 == 0:
 
@@ -90,21 +91,21 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 		train_metrics['gen_loss'] += r_metrics['gen_loss']
 		train_metrics['dis_loss'] += L_rd
 
-	avg_train_metrics['rec_loss'] = train_metrics['rec_loss'] / len(train_loader.dataset)
-	avg_train_metrics['gen_loss'] = train_metrics['gen_loss'] / len(train_loader.dataset)
-	avg_train_metrics['dis_loss'] = train_metrics['dis_loss'] / len(train_loader.dataset)
+	train_metrics['rec_loss'] = train_metrics['rec_loss'] / len(train_loader.dataset)
+	train_metrics['gen_loss'] = train_metrics['gen_loss'] / len(train_loader.dataset)
+	train_metrics['dis_loss'] = train_metrics['dis_loss'] / len(train_loader.dataset)
 
-	return avg_train_metrics
+	return train_metrics
 
 
-def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, device) -> dict:
+def validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device) -> dict:
 
 	r_net.eval()
 	d_net.eval()
 
 	valid_metrics = {'rec_loss' : 0, 'gen_loss' : 0, 'dis_loss' : 0}
 
-	for data in train_loader:
+	for data in valid_loader:
 
 		x_real = data[0].to(device)
 		x_fake = r_net(x_real)
@@ -117,11 +118,11 @@ def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, device) -> 
 		valid_metrics['gen_loss'] += r_metrics['gen_loss']
 		valid_metrics['dis_loss'] += loss_rd
 
-	avg_valid_metrics['rec_loss'] = valid_metrics['rec_loss'] / len(train_loader.dataset)
-	avg_valid_metrics['gen_loss'] = valid_metrics['gen_loss'] / len(train_loader.dataset)
-	avg_valid_metrics['dis_loss'] = valid_metrics['dis_loss'] / len(train_loader.dataset)
+	valid_metrics['rec_loss'] = valid_metrics['rec_loss'] / len(train_loader.dataset)
+	valid_metrics['gen_loss'] = valid_metrics['gen_loss'] / len(train_loader.dataset)
+	valid_metrics['dis_loss'] = valid_metrics['dis_loss'] / len(train_loader.dataset)
 
-	return avg_valid_metrics
+	return valid_metrics
 
 
 def plot_learning_curves(metrics: dict):
