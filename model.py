@@ -2,26 +2,6 @@ import torch
 import torch.nn.functional as F
 
 
-class Detector(torch.nn.Module):
-
-	def __init__(self, r_params : dict, d_params : dict):
-
-		super(Detector, self).__init__()
-
-		self.r_params = r_params
-		self.d_params = d_params
-
-		self.r_net = R_Net(**self.r_params)
-		self.d_net = D_Net(**self.d_params)
-
-	def forward(self, x, real = True):
-
-		x = x if real else self.r_net(x)
-		x = self.d_net(x)
-
-		return x
-
-
 class R_Net(torch.nn.Module):
 
 	def __init__(self, activation = torch.nn.SELU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5, std = 1):
@@ -156,14 +136,27 @@ class D_Net(torch.nn.Module):
 		return out
 
 
-def loss(p, y, x, rec_x, lambd = 0.4, R_loss = F.mse_loss):
+def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, lambd: float) -> dict:
 
-	loss = {'Lr' : 0, 'Lr+d' : 0, 'L' : 0}
+	rec_loss = F.mse_loss(x_fake, x_real)
 
-	loss['Lr'] = R_loss(x, rec_x, reduction = 'mean')
+	pred = d_net(x_fake)
+	y = torch.ones_like(pred)
 
-	loss['Lr+d'] = F.cross_entropy(p, y)
+	gen_loss = F.binary_cross_entropy(pred, y) # generator loss
 
-	loss['L'] = loss['Lr+d'] + lambd * loss['Lr']
+	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss}
 
-	return loss
+
+def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -> torch.Tensor:
+
+	pred_real = d_net(x_real)
+	pred_fake = d_net(x_fake)
+
+	y_real = torch.ones_like(pred_real)
+	y_fake = torch.ones_like(pred_fake)
+
+	real_loss = F.binary_cross_entropy(pred_real, y_real)
+	fake_loss = F.binary_cross_entropy(pred_fake, y_fake)
+
+	return real_loss + fake_loss
