@@ -145,7 +145,9 @@ def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, l
 
 	gen_loss = F.binary_cross_entropy(pred, y) # generator loss
 
-	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss}
+	L_r = gen_loss + lambd * rec_loss
+
+	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss}, L_r
 
 
 def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -> torch.Tensor:
