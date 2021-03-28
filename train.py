@@ -1,5 +1,4 @@
 import torch
-import os
 import matplotlib.pyplot as plt
 
 def train_model(r_net: torch.nn.Module,
@@ -14,9 +13,8 @@ def train_model(r_net: torch.nn.Module,
 				batch_size: int = 512,
 				max_epochs: int = 1000,
 				rec_loss_bound: float = 0.001,
-				lambd: float = 0.4
-				device: torch.device = torch.device('cpu'),
-				best_model_root: str = './model.pth') -> tuple:
+				lambd: float = 0.4,
+				device: torch.device = torch.device('cpu')) -> tuple:
 
 	optim_r = torch.optim.Adam(r_net.parameters(), lr = learning_rate, **optim_r_params)
 	optim_d = torch.optim.Adam(d_net.parameters(), lr = learning_rate, **optim_d_params)
@@ -24,21 +22,36 @@ def train_model(r_net: torch.nn.Module,
 	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True)
 	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size)
 
-	metrics = {'train' : [], 'valid' : []}
+	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}
+				'valid' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}}
 
 	for epoch in range(max_epochs):
 
-		train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd)
-		valid_metrics = validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd)
+		avg_train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd)
+		avg_valid_metrics = validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd)
 
-		metrics['train'].append(train_metrics)
-		metrics['valid'].append(valid_metrics)
+		metrics['train']['rec_loss'].append(avg_train_metrics['rec_loss'].item())
+		metrics['train']['gen_loss'].append(avg_train_metrics['gen_loss'].item())
+		metrics['train']['dis_loss'].append(avg_train_metrics['dis_loss'].item())
+		metrics['valid']['rec_loss'].append(avg_valid_metrics['rec_loss'].iten())
+		metrics['valid']['gen_loss'].append(avg_valid_metrics['gen_loss'].item())
+		metrics['valid']['dis_loss'].append(avg_valid_metrics['dis_loss'].item())
 
-		if valid_metrics['rec_loss'] < rec_loss_bound:
+		if epoch % 10 == 0:
+
+			print(f'Epoch {epoch}:')
+			print('TRAIN METRICS:', avg_train_metrics)
+			print('VALID METRICS:', avg_valid_metrics)
+
+			torch.save(r_net, './r_net.pth')
+			torch.save(d_net, './d_net.pth')
+
+		if avg_valid_metrics['rec_loss'].item() < rec_loss_bound:
 			print('Reconstruction loss achieved optimum\n \
 				Stopping training')
 
-			
+			torch.save(r_net, './r_net.pth')
+			torch.save(d_net, './d_net.pth')
 
 			break
 
@@ -47,7 +60,7 @@ def train_model(r_net: torch.nn.Module,
 	return (r_net, d_net)
 
 
-def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd):
+def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd) -> dict:
 
 	r_net.train()
 	d_net.train()
@@ -61,23 +74,21 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 
 		d_net.zero_grad()
 
-		loss_rd = d_loss(d_net, x_real, x_fake)
+		L_rd = d_loss(d_net, x_real, x_fake)
 
-		loss_rd.backward()
+		L_rd.backward()
 		optim_d.step()
 
 		r_net.zero_grad()
 
-		r_metrics = r_loss(d_net, x_real, x_fake, lambd)
+		r_metrics, L_r = r_loss(d_net, x_real, x_fake, lambd)
 
-		r_loss = r_metrics['rec_loss'] + r_metrics['gen_loss']
-		
-		r_loss.backward()
+		L_r.backward()
 		optim_r.step()
 
 		train_metrics['rec_loss'] += r_metrics['rec_loss']
 		train_metrics['gen_loss'] += r_metrics['gen_loss']
-		train_metrics['dis_loss'] += loss_rd
+		train_metrics['dis_loss'] += L_rd
 
 	avg_train_metrics['rec_loss'] = train_metrics['rec_loss'] / len(train_loader.dataset)
 	avg_train_metrics['gen_loss'] = train_metrics['gen_loss'] / len(train_loader.dataset)
@@ -86,7 +97,7 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 	return avg_train_metrics
 
 
-def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd):
+def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd) -> dict:
 
 	r_net.eval()
 	d_net.eval()
@@ -115,6 +126,31 @@ def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd):
 	return avg_valid_metrics
 
 
-def plot_learning_curves(metrics):
+def plot_learning_curves(metrics: dict):
 
-	pass #tu tu ru ...
+	# Plot reconstruction loss
+	plt.plot(metrics['train']['rec_loss'], label = 'Train rec loss')
+    plt.plot(metrics['valid']['rec_loss'], label = 'Dev rec loss')
+    plt.title('Reconstruction loss evolution')
+    plt.xlabel('epochs')
+    plt.ylabel('Rec loss')
+    plt.legend()
+    plt.savefig('./metrics/rec_loss.jpg')
+
+    # Plot discriminator loss
+    plt.plot(metrics['train']['dis_loss'], label = 'Train dis loss')
+    plt.plot(metrics['valid']['dis_loss'], label = 'Dev dis loss')
+    plt.title('Discriminator loss evolution')
+    plt.xlabel('epochs')
+    plt.ylabel('Dis loss')
+    plt.legend()
+    plt.savefig('./metrics/dis_loss.jpg')
+
+    # Plot generator loss log(D(G(x)))
+    plt.plot(metrics['train']['gen_loss'], label = 'Train gen loss')
+    plt.plot(metrics['valid']['gen_loss'], label = 'Dev gen loss')
+    plt.title('Generator loss evolution')
+    plt.xlabel('epochs')
+    plt.ylabel('Gen loss')
+    plt.legend()
+    plt.savefig('./metrics/gen_loss.jpg')
