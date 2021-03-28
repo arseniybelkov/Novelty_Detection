@@ -42,9 +42,9 @@ class R_Net(torch.nn.Module):
 
 	def forward(self, x):
 
-		x_hat = add_noise(x)
-		z = encoder(x_hat)
-		x_out = decoder(z)
+		x_hat = self.add_noise(x)
+		z = self.encoder(x_hat)
+		x_out = self.decoder(z)
 
 		return x_out
 
@@ -118,7 +118,7 @@ class D_Net(torch.nn.Module):
 		for cnn_layer in self.cnn:
 			test_x  = cnn_layer(test_x)
 		out_dim =  torch.prod(torch.tensor(test_x.shape[1:])).item()
-		for p in cnn_layers.parameters():
+		for p in self.cnn.parameters():
 			p.requires_grad = True
 
 		return out_dim
@@ -128,7 +128,7 @@ class D_Net(torch.nn.Module):
 		for cnn_layer in self.cnn:
 			x = cnn_layer(x)
 
-		out = torch.flatten(x, dim = 1)
+		out = torch.flatten(x, start_dim = 1)
 
 		for fc_layer in self.fc:
 			out = fc_layer(out)
@@ -153,7 +153,7 @@ def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, l
 def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -> torch.Tensor:
 
 	pred_real = d_net(x_real)
-	pred_fake = d_net(x_fake)
+	pred_fake = d_net(x_fake.detach())
 
 	y_real = torch.ones_like(pred_real)
 	y_fake = torch.ones_like(pred_fake)

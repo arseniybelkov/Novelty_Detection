@@ -5,7 +5,7 @@ def train_model(r_net: torch.nn.Module,
 				d_net: torch.nn.Module,
 				train_dataset: torch.utils.data.Dataset,
 				valid_dataset: torch.utils.data.Dataset,
-				r_Loss,
+				r_loss,
 				d_loss,
 				optim_r_params: dict = {},
 				optim_d_params: dict = {},
@@ -22,13 +22,13 @@ def train_model(r_net: torch.nn.Module,
 	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True)
 	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size)
 
-	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}
+	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []},
 				'valid' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}}
 
 	for epoch in range(max_epochs):
 
-		avg_train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd)
-		avg_valid_metrics = validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd)
+		avg_train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd, device)
+		avg_valid_metrics = validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, device)
 
 		metrics['train']['rec_loss'].append(avg_train_metrics['rec_loss'].item())
 		metrics['train']['gen_loss'].append(avg_train_metrics['gen_loss'].item())
@@ -60,7 +60,7 @@ def train_model(r_net: torch.nn.Module,
 	return (r_net, d_net)
 
 
-def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd) -> dict:
+def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd, device) -> dict:
 
 	r_net.train()
 	d_net.train()
@@ -97,7 +97,7 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 	return avg_train_metrics
 
 
-def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd) -> dict:
+def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, device) -> dict:
 
 	r_net.eval()
 	d_net.eval()
@@ -111,9 +111,7 @@ def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd) -> d
 
 		loss_rd = d_loss(d_net, x_real, x_fake)
 
-		r_metrics = r_loss(d_net, x_real, x_fake, lambd)
-
-		r_loss = r_metrics['rec_loss'] + r_metrics['gen_loss']
+		r_metrics, _ = r_loss(d_net, x_real, x_fake, 0)
 		
 		valid_metrics['rec_loss'] += r_metrics['rec_loss']
 		valid_metrics['gen_loss'] += r_metrics['gen_loss']
@@ -128,29 +126,29 @@ def validate_single_epoch(r_net, d_net, loss_fuctnion, valid_loader, lambd) -> d
 
 def plot_learning_curves(metrics: dict):
 
-	# Plot reconstruction loss
+	# Plot reconstruction loss: ||X' - X||^2
 	plt.plot(metrics['train']['rec_loss'], label = 'Train rec loss')
-    plt.plot(metrics['valid']['rec_loss'], label = 'Dev rec loss')
-    plt.title('Reconstruction loss evolution')
-    plt.xlabel('epochs')
-    plt.ylabel('Rec loss')
-    plt.legend()
-    plt.savefig('./metrics/rec_loss.jpg')
+	plt.plot(metrics['valid']['rec_loss'], label = 'Dev rec loss')
+	plt.title('Reconstruction loss evolution')
+	plt.xlabel('epochs')
+	plt.ylabel('Rec loss')
+	plt.legend()
+	plt.savefig('./metrics/rec_loss.jpg')
 
-    # Plot discriminator loss
-    plt.plot(metrics['train']['dis_loss'], label = 'Train dis loss')
-    plt.plot(metrics['valid']['dis_loss'], label = 'Dev dis loss')
-    plt.title('Discriminator loss evolution')
-    plt.xlabel('epochs')
-    plt.ylabel('Dis loss')
-    plt.legend()
-    plt.savefig('./metrics/dis_loss.jpg')
+	# Plot discriminator loss: -y*log(D(x)) - (1-y)*(1 - D(R(x)))
+	plt.plot(metrics['train']['dis_loss'], label = 'Train dis loss')
+	plt.plot(metrics['valid']['dis_loss'], label = 'Dev dis loss')
+	plt.title('Discriminator loss evolution')
+	plt.xlabel('epochs')
+	plt.ylabel('Dis loss')
+	plt.legend()
+	plt.savefig('./metrics/dis_loss.jpg')
 
-    # Plot generator loss log(D(G(x)))
-    plt.plot(metrics['train']['gen_loss'], label = 'Train gen loss')
-    plt.plot(metrics['valid']['gen_loss'], label = 'Dev gen loss')
-    plt.title('Generator loss evolution')
-    plt.xlabel('epochs')
-    plt.ylabel('Gen loss')
-    plt.legend()
-    plt.savefig('./metrics/gen_loss.jpg')
+	# Plot generator loss: -log(D(R(x)))
+	plt.plot(metrics['train']['gen_loss'], label = 'Train gen loss')
+	plt.plot(metrics['valid']['gen_loss'], label = 'Dev gen loss')
+	plt.title('Generator loss evolution')
+	plt.xlabel('epochs')
+	plt.ylabel('Gen loss')
+	plt.legend()
+	plt.savefig('./metrics/gen_loss.jpg')
