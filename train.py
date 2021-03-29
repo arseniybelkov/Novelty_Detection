@@ -12,6 +12,7 @@ def train_model(r_net: torch.nn.Module,
 				optim_d_params: dict = {},
 				learning_rate: float = 0.001,
 				batch_size: int = 512,
+				num_workers: int = 0,
 				max_epochs: int = 1000,
 				rec_loss_bound: float = 0.001,
 				lambd: float = 0.4,
@@ -20,8 +21,8 @@ def train_model(r_net: torch.nn.Module,
 	optim_r = torch.optim.Adam(r_net.parameters(), lr = learning_rate, **optim_r_params)
 	optim_d = torch.optim.Adam(d_net.parameters(), lr = learning_rate, **optim_d_params)
 
-	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True, num_workers = 2)
-	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size)
+	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True, num_workers = num_workers)
+	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, pin_memory = True, num_workers = num_workers)
 
 	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []},
 				'valid' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}}
@@ -31,12 +32,12 @@ def train_model(r_net: torch.nn.Module,
 		train_metrics = train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loader, lambd, device)
 		valid_metrics = validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device)
 
-		metrics['train']['rec_loss'].append(train_metrics['rec_loss'].item())
-		metrics['train']['gen_loss'].append(train_metrics['gen_loss'].item())
-		metrics['train']['dis_loss'].append(train_metrics['dis_loss'].item())
-		metrics['valid']['rec_loss'].append(valid_metrics['rec_loss'].iten())
-		metrics['valid']['gen_loss'].append(valid_metrics['gen_loss'].item())
-		metrics['valid']['dis_loss'].append(valid_metrics['dis_loss'].item())
+		metrics['train']['rec_loss'].append(train_metrics['rec_loss'])
+		metrics['train']['gen_loss'].append(train_metrics['gen_loss'])
+		metrics['train']['dis_loss'].append(train_metrics['dis_loss'])
+		metrics['valid']['rec_loss'].append(valid_metrics['rec_loss'])
+		metrics['valid']['gen_loss'].append(valid_metrics['gen_loss'])
+		metrics['valid']['dis_loss'].append(valid_metrics['dis_loss'])
 
 		if epoch % 10 == 0:
 
@@ -75,25 +76,25 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 
 		d_net.zero_grad()
 
-		L_rd = d_loss(d_net, x_real, x_fake)
+		dis_loss = d_loss(d_net, x_real, x_fake)
 
-		L_rd.backward()
+		dis_loss.backward()
 		optim_d.step()
 
 		r_net.zero_grad()
 
-		r_metrics, L_r = r_loss(d_net, x_real, x_fake, lambd)
+		r_metrics, L_r = r_loss(d_net, x_real, x_fake, lambd) # L_r = gen_loss + lambda * rec_loss
 
 		L_r.backward()
 		optim_r.step()
 
 		train_metrics['rec_loss'] += r_metrics['rec_loss']
 		train_metrics['gen_loss'] += r_metrics['gen_loss']
-		train_metrics['dis_loss'] += L_rd
+		train_metrics['dis_loss'] += dis_loss
 
-	train_metrics['rec_loss'] = train_metrics['rec_loss'] / len(train_loader.dataset)
-	train_metrics['gen_loss'] = train_metrics['gen_loss'] / len(train_loader.dataset)
-	train_metrics['dis_loss'] = train_metrics['dis_loss'] / len(train_loader.dataset)
+	train_metrics['rec_loss'] = train_metrics['rec_loss'].item() / len(train_loader.dataset)
+	train_metrics['gen_loss'] = train_metrics['gen_loss'].item() / len(train_loader.dataset)
+	train_metrics['dis_loss'] = train_metrics['dis_loss'].item() / len(train_loader.dataset)
 
 	return train_metrics
 
@@ -105,22 +106,23 @@ def validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device) ->
 
 	valid_metrics = {'rec_loss' : 0, 'gen_loss' : 0, 'dis_loss' : 0}
 
-	for data in valid_loader:
+	with torch.no_grad():
+		for data in valid_loader:
 
-		x_real = data[0].to(device)
-		x_fake = r_net(x_real)
+			x_real = data[0].to(device)
+			x_fake = r_net(x_real)
+	
+			dis_loss = d_loss(d_net, x_real, x_fake)
+	
+			r_metrics, _ = r_loss(d_net, x_real, x_fake, 0)
+				
+			valid_metrics['rec_loss'] += r_metrics['rec_loss']
+			valid_metrics['gen_loss'] += r_metrics['gen_loss']
+			valid_metrics['dis_loss'] += dis_loss
 
-		loss_rd = d_loss(d_net, x_real, x_fake)
-
-		r_metrics, _ = r_loss(d_net, x_real, x_fake, 0)
-		
-		valid_metrics['rec_loss'] += r_metrics['rec_loss']
-		valid_metrics['gen_loss'] += r_metrics['gen_loss']
-		valid_metrics['dis_loss'] += loss_rd
-
-	valid_metrics['rec_loss'] = valid_metrics['rec_loss'] / len(train_loader.dataset)
-	valid_metrics['gen_loss'] = valid_metrics['gen_loss'] / len(train_loader.dataset)
-	valid_metrics['dis_loss'] = valid_metrics['dis_loss'] / len(train_loader.dataset)
+	valid_metrics['rec_loss'] = valid_metrics['rec_loss'].item() / len(train_loader.dataset)
+	valid_metrics['gen_loss'] = valid_metrics['gen_loss'].item() / len(train_loader.dataset)
+	valid_metrics['dis_loss'] = valid_metrics['dis_loss'].item() / len(train_loader.dataset)
 
 	return valid_metrics
 
