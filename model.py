@@ -2,6 +2,30 @@ import torch
 import torch.nn.functional as F
 
 
+class Dataset(torch.utils.data.Dataset):
+
+	def __init__(self, dataset: torch.utils.data.Dataset, labels: list):
+		self.dataset = dataset
+		self.labels = labels
+		self.indexes = self._extract_indexes()
+
+	def _extract_indexes(self):
+
+		indexes = []
+
+		for label in self.labels:
+			for i, sample in enumerate(self.dataset):
+				if sample[1] == label:
+					indexes.append(i)
+		return indexes
+
+	def __len__(self):
+		return len(self.indexes)
+	
+	def __getitem__(self, idx):
+		return self.dataset[self.indexes[idx]]
+
+
 class R_Net(torch.nn.Module):
 
 	def __init__(self, activation = torch.nn.SELU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5, std = 1):
