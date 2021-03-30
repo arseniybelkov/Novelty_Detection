@@ -17,7 +17,7 @@ class Dataset(torch.utils.data.Dataset):
 			for i, sample in enumerate(self.dataset):
 				if sample[1] == label:
 					indexes.append(i)
-		print(f'Created dataset for labels: {self.labels}')
+		print(f'Created dataset of length {len(indexes)} for labels: {self.labels}')
 		return indexes
 
 	def __len__(self):
@@ -110,7 +110,8 @@ class D_Net(torch.nn.Module):
 
 		self.out_dim = self._compute_out_dim()
 
-		self.fc = torch.nn.Sequential(torch.nn.Linear(self.out_dim, 1),
+		self.fc = torch.nn.Sequential(torch.nn.Linear(self.out_dim, 1, bias = False),
+										torch.nn.BatchNorm1d(1),
 										torch.nn.Sigmoid())
 
 	def _compute_out_dim(self):
@@ -141,7 +142,7 @@ def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, l
 	pred = d_net(x_fake)
 	y = torch.ones_like(pred)
 
-	rec_loss = F.mse_loss(x_fake, x_real, reduction = 'sum')
+	rec_loss = F.mse_loss(x_fake, x_real)
 	gen_loss = F.binary_cross_entropy(pred, y, reduction = 'sum') # generator loss
 
 	L_r = gen_loss + lambd * rec_loss
@@ -153,9 +154,9 @@ def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -
 
 	pred_real = d_net(x_real)
 	pred_fake = d_net(x_fake.detach())
-
+	
 	y_real = torch.ones_like(pred_real)
-	y_fake = torch.ones_like(pred_fake)
+	y_fake = torch.zeros_like(pred_fake)
 
 	real_loss = F.binary_cross_entropy(pred_real, y_real, reduction = 'sum')
 	fake_loss = F.binary_cross_entropy(pred_fake, y_fake, reduction = 'sum')
