@@ -102,7 +102,7 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 		train_metrics['gen_loss'] += r_metrics['gen_loss']
 		train_metrics['dis_loss'] += dis_loss
 
-	train_metrics['rec_loss'] = train_metrics['rec_loss'].item() / len(train_loader.dataset)
+	train_metrics['rec_loss'] = train_metrics['rec_loss'].item() / (len(train_loader.dataset) / train_loader.batch_size)
 	train_metrics['gen_loss'] = train_metrics['gen_loss'].item() / len(train_loader.dataset)
 	train_metrics['dis_loss'] = train_metrics['dis_loss'].item() / len(train_loader.dataset)
 
@@ -130,7 +130,7 @@ def validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device) ->
 			valid_metrics['gen_loss'] += r_metrics['gen_loss']
 			valid_metrics['dis_loss'] += dis_loss
 
-	valid_metrics['rec_loss'] = valid_metrics['rec_loss'].item() / len(valid_loader.dataset)
+	valid_metrics['rec_loss'] = valid_metrics['rec_loss'].item() / (len(valid_loader.dataset) / valid_loader.batch_size)
 	valid_metrics['gen_loss'] = valid_metrics['gen_loss'].item() / len(valid_loader.dataset)
 	valid_metrics['dis_loss'] = valid_metrics['dis_loss'].item() / len(valid_loader.dataset)
 
