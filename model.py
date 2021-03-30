@@ -17,6 +17,7 @@ class Dataset(torch.utils.data.Dataset):
 			for i, sample in enumerate(self.dataset):
 				if sample[1] == label:
 					indexes.append(i)
+		print(f'Created dataset for labels: {self.labels}')
 		return indexes
 
 	def __len__(self):

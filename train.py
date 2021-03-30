@@ -1,3 +1,4 @@
+import os
 import torch
 import matplotlib.pyplot as plt
 
@@ -12,17 +13,25 @@ def train_model(r_net: torch.nn.Module,
 				optim_d_params: dict = {},
 				learning_rate: float = 0.001,
 				batch_size: int = 512,
+				pin_memory: bool = True,
 				num_workers: int = 0,
 				max_epochs: int = 1000,
+				epoch_step: int = 1,
+				save_step: int = 2,
 				rec_loss_bound: float = 0.001,
 				lambd: float = 0.4,
 				device: torch.device = torch.device('cpu')) -> tuple:
 
+	if not os.path.exists('./models'):
+		os.makedirs('./models')
+	if not os.path.exists('./metrics'):
+		os.makedirs('./metrics')
+
 	optim_r = torch.optim.Adam(r_net.parameters(), lr = learning_rate, **optim_r_params)
 	optim_d = torch.optim.Adam(d_net.parameters(), lr = learning_rate, **optim_d_params)
 
-	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=True, num_workers = num_workers)
-	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, pin_memory = True, num_workers = num_workers)
+	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=pin_memory, num_workers = num_workers)
+	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, pin_memory=pin_memory, num_workers = num_workers)
 
 	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []},
 				'valid' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}}
@@ -39,21 +48,22 @@ def train_model(r_net: torch.nn.Module,
 		metrics['valid']['gen_loss'].append(valid_metrics['gen_loss'])
 		metrics['valid']['dis_loss'].append(valid_metrics['dis_loss'])
 
-		if epoch % 10 == 0:
-
+		if epoch % epoch_step == 0:
 			print(f'Epoch {epoch}:')
-			print('TRAIN METRICS:', avg_train_metrics)
-			print('VALID METRICS:', avg_valid_metrics)
+			print('TRAIN METRICS:', train_metrics)
+			print('VALID METRICS:', valid_metrics)
 
-			torch.save(r_net, './r_net.pth')
-			torch.save(d_net, './d_net.pth')
+		if epoch % save_step == 0:
+			print(f'Saving model on epoch {epoch}')
+			torch.save(r_net, './models/r_net.pth')
+			torch.save(d_net, './models/d_net.pth')
 
-		if avg_valid_metrics['rec_loss'].item() < rec_loss_bound:
+		if valid_metrics['rec_loss'] < rec_loss_bound and train_metrics['rec_loss'] < rec_loss_bound:
 			print('Reconstruction loss achieved optimum\n \
 				Stopping training')
 
-			torch.save(r_net, './r_net.pth')
-			torch.save(d_net, './d_net.pth')
+			torch.save(r_net, './models/r_net.pth')
+			torch.save(d_net, './models/d_net.pth')
 
 			break
 
@@ -120,9 +130,9 @@ def validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device) ->
 			valid_metrics['gen_loss'] += r_metrics['gen_loss']
 			valid_metrics['dis_loss'] += dis_loss
 
-	valid_metrics['rec_loss'] = valid_metrics['rec_loss'].item() / len(train_loader.dataset)
-	valid_metrics['gen_loss'] = valid_metrics['gen_loss'].item() / len(train_loader.dataset)
-	valid_metrics['dis_loss'] = valid_metrics['dis_loss'].item() / len(train_loader.dataset)
+	valid_metrics['rec_loss'] = valid_metrics['rec_loss'].item() / len(valid_loader.dataset)
+	valid_metrics['gen_loss'] = valid_metrics['gen_loss'].item() / len(valid_loader.dataset)
+	valid_metrics['dis_loss'] = valid_metrics['dis_loss'].item() / len(valid_loader.dataset)
 
 	return valid_metrics
 
