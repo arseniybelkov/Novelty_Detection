@@ -9,29 +9,45 @@ def train_model(r_net: torch.nn.Module,
 				valid_dataset: torch.utils.data.Dataset,
 				r_loss,
 				d_loss,
+				lr_scheduler = None,
 				optim_r_params: dict = {},
 				optim_d_params: dict = {},
 				learning_rate: float = 0.001,
+				scheduler_r_params: dict = {},
+				scheduler_d_params: dict = {},
 				batch_size: int = 512,
 				pin_memory: bool = True,
-				num_workers: int = 0,
+				num_workers: int = 1,
 				max_epochs: int = 1000,
 				epoch_step: int = 1,
-				save_step: int = 2,
+				save_step: int = 5,
 				rec_loss_bound: float = 0.001,
 				lambd: float = 0.4,
-				device: torch.device = torch.device('cpu')) -> tuple:
+				device: torch.device = torch.device('cpu'),
+				save_path: str = '.') -> tuple:
 
-	if not os.path.exists('./models'):
-		os.makedirs('./models')
-	if not os.path.exists('./metrics'):
-		os.makedirs('./metrics')
+	model_path = os.path.join(save_path, 'models')
+	metric_path= os.path.join(save_path, 'metrics')
+	r_net_path = os.path.join(model_path, 'r_net.pth')
+	d_net_path = os.path.join(model_path, 'd_net.pth')
+
+	if not os.path.exists(model_path):
+		os.makedirs(model_path)
+	if not os.path.exists(metric_path):
+		os.makedirs(metric_path)
+
+	print(f'Models will be saved in {model_path}')
+	print(f'Metrics will be saved in {metric_path}')
 
 	optim_r = torch.optim.Adam(r_net.parameters(), lr = learning_rate, **optim_r_params)
 	optim_d = torch.optim.Adam(d_net.parameters(), lr = learning_rate, **optim_d_params)
 
-	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=pin_memory, num_workers = num_workers)
-	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, pin_memory=pin_memory, num_workers = num_workers)
+	if lr_scheduler:
+		scheduler_r = lr_scheduler(optim_r, verbose=True, **scheduler_r_params)
+		scheduler_d = lr_scheduler(optim_d, verbose=True, **scheduler_d_params)
+
+	train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size, pin_memory=pin_memory, num_workers=num_workers)
+	valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, pin_memory=pin_memory, num_workers=num_workers)
 
 	metrics =  {'train' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []},
 				'valid' : {'rec_loss' : [], 'gen_loss' : [], 'dis_loss' : []}}
@@ -53,21 +69,24 @@ def train_model(r_net: torch.nn.Module,
 			print('TRAIN METRICS:', train_metrics)
 			print('VALID METRICS:', valid_metrics)
 
+		if lr_scheduler:
+			scheduler_r.step(valid_metrics['rec_loss'])
+			scheduler_d.step(valid_metrics['rec_loss'])
+
 		if epoch % save_step == 0:
+			torch.save(r_net, r_net_path)
+			torch.save(d_net, d_net_path)
 			print(f'Saving model on epoch {epoch}')
-			torch.save(r_net, './models/r_net.pth')
-			torch.save(d_net, './models/d_net.pth')
 
 		if valid_metrics['rec_loss'] < rec_loss_bound and train_metrics['rec_loss'] < rec_loss_bound:
-			print('Reconstruction loss achieved optimum\n \
-				Stopping training')
-
-			torch.save(r_net, './models/r_net.pth')
-			torch.save(d_net, './models/d_net.pth')
+			torch.save(r_net, r_net_path)
+			torch.save(d_net, d_net_path)
+			print('Reconstruction loss achieved optimum')
+			print('Stopping training')
 
 			break
 
-	plot_learning_curves(metrics)
+	plot_learning_curves(metrics, metric_path)
 
 	return (r_net, d_net)
 
@@ -137,7 +156,11 @@ def validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device) ->
 	return valid_metrics
 
 
-def plot_learning_curves(metrics: dict):
+def plot_learning_curves(metrics: dict, metric_path: str):
+
+	rec_loss_path = os.path.join(metric_path, 'rec_loss.jpg')
+	dis_loss_path = os.path.join(metric_path, 'dis_loss.jpg')
+	gen_loss_path = os.path.join(metric_path, 'gen_loss.jpg')
 
 	# Plot reconstruction loss: ||X' - X||^2
 	plt.plot(metrics['train']['rec_loss'], label = 'Train rec loss')
@@ -146,16 +169,16 @@ def plot_learning_curves(metrics: dict):
 	plt.xlabel('epochs')
 	plt.ylabel('Rec loss')
 	plt.legend()
-	plt.savefig('./metrics/rec_loss.jpg')
+	plt.savefig(rec_loss_path)
 
-	# Plot discriminator loss: -y*log(D(x)) - (1-y)*(1 - D(R(x)))
+	# Plot discriminator loss: -log(D(x)) - log(1 - D(R(x')))
 	plt.plot(metrics['train']['dis_loss'], label = 'Train dis loss')
 	plt.plot(metrics['valid']['dis_loss'], label = 'Dev dis loss')
 	plt.title('Discriminator loss evolution')
 	plt.xlabel('epochs')
 	plt.ylabel('Dis loss')
 	plt.legend()
-	plt.savefig('./metrics/dis_loss.jpg')
+	plt.savefig(dis_loss_path)
 
 	# Plot generator loss: -log(D(R(x)))
 	plt.plot(metrics['train']['gen_loss'], label = 'Train gen loss')
@@ -164,4 +187,4 @@ def plot_learning_curves(metrics: dict):
 	plt.xlabel('epochs')
 	plt.ylabel('Gen loss')
 	plt.legend()
-	plt.savefig('./metrics/gen_loss.jpg')
+	plt.savefig(gen_loss_path)
