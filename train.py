@@ -21,15 +21,15 @@ def train_model(r_net: torch.nn.Module,
 				max_epochs: int = 1000,
 				epoch_step: int = 1,
 				save_step: int = 5,
-				rec_loss_bound: float = 0.001,
+				rec_loss_bound: float = 0.01,
 				lambd: float = 0.4,
 				device: torch.device = torch.device('cpu'),
-				save_path: str = '.') -> tuple:
+				save_path: tuple = ('.','r_net.pth','d_net.pth')) -> tuple:
 
-	model_path = os.path.join(save_path, 'models')
-	metric_path= os.path.join(save_path, 'metrics')
-	r_net_path = os.path.join(model_path, 'r_net.pth')
-	d_net_path = os.path.join(model_path, 'd_net.pth')
+	model_path = os.path.join(save_path[0], 'models')
+	metric_path= os.path.join(save_path[0], 'metrics')
+	r_net_path = os.path.join(model_path, save_path[1])
+	d_net_path = os.path.join(model_path, save_path[2])
 
 	if not os.path.exists(model_path):
 		os.makedirs(model_path)
@@ -112,9 +112,9 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 
 		r_net.zero_grad()
 
-		r_metrics, L_r = r_loss(d_net, x_real, x_fake, lambd) # L_r = gen_loss + lambda * rec_loss
+		r_metrics = r_loss(d_net, x_real, x_fake, lambd) # L_r = gen_loss + lambda * rec_loss
 
-		L_r.backward()
+		r_metrics['L_r'].backward()
 		optim_r.step()
 
 		train_metrics['rec_loss'] += r_metrics['rec_loss']
@@ -122,8 +122,8 @@ def train_single_epoch(r_net, d_net, optim_r, optim_d, r_loss, d_loss, train_loa
 		train_metrics['dis_loss'] += dis_loss
 
 	train_metrics['rec_loss'] = train_metrics['rec_loss'].item() / (len(train_loader.dataset) / train_loader.batch_size)
-	train_metrics['gen_loss'] = train_metrics['gen_loss'].item() / len(train_loader.dataset)
-	train_metrics['dis_loss'] = train_metrics['dis_loss'].item() / len(train_loader.dataset)
+	train_metrics['gen_loss'] = train_metrics['gen_loss'].item() / (len(train_loader.dataset) / train_loader.batch_size)
+	train_metrics['dis_loss'] = train_metrics['dis_loss'].item() / (len(train_loader.dataset) / train_loader.batch_size)
 
 	return train_metrics
 
@@ -143,15 +143,15 @@ def validate_single_epoch(r_net, d_net, r_loss, d_loss, valid_loader, device) ->
 	
 			dis_loss = d_loss(d_net, x_real, x_fake)
 	
-			r_metrics, _ = r_loss(d_net, x_real, x_fake, 0)
+			r_metrics = r_loss(d_net, x_real, x_fake, 0)
 				
 			valid_metrics['rec_loss'] += r_metrics['rec_loss']
 			valid_metrics['gen_loss'] += r_metrics['gen_loss']
 			valid_metrics['dis_loss'] += dis_loss
 
 	valid_metrics['rec_loss'] = valid_metrics['rec_loss'].item() / (len(valid_loader.dataset) / valid_loader.batch_size)
-	valid_metrics['gen_loss'] = valid_metrics['gen_loss'].item() / len(valid_loader.dataset)
-	valid_metrics['dis_loss'] = valid_metrics['dis_loss'].item() / len(valid_loader.dataset)
+	valid_metrics['gen_loss'] = valid_metrics['gen_loss'].item() / (len(valid_loader.dataset) / valid_loader.batch_size)
+	valid_metrics['dis_loss'] = valid_metrics['dis_loss'].item() / (len(valid_loader.dataset) / valid_loader.batch_size)
 
 	return valid_metrics
 

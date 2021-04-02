@@ -110,9 +110,7 @@ class D_Net(torch.nn.Module):
 
 		self.out_dim = self._compute_out_dim()
 
-		self.fc = torch.nn.Sequential(torch.nn.Linear(self.out_dim, 1, bias = False),
-										torch.nn.BatchNorm1d(1),
-										torch.nn.Sigmoid())
+		self.fc = torch.nn.Linear(self.out_dim, 1)
 
 	def _compute_out_dim(self):
 		
@@ -143,11 +141,11 @@ def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, l
 	y = torch.ones_like(pred)
 
 	rec_loss = F.mse_loss(x_fake, x_real)
-	gen_loss = F.binary_cross_entropy(pred, y, reduction = 'sum') # generator loss
+	gen_loss = F.binary_cross_entropy_with_logits(pred, y) # generator loss
 
 	L_r = gen_loss + lambd * rec_loss
 
-	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss}, L_r
+	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss, 'L_r' : L_r}
 
 
 def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -> torch.Tensor:
@@ -158,7 +156,7 @@ def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -
 	y_real = torch.ones_like(pred_real)
 	y_fake = torch.zeros_like(pred_fake)
 
-	real_loss = F.binary_cross_entropy(pred_real, y_real, reduction = 'sum')
-	fake_loss = F.binary_cross_entropy(pred_fake, y_fake, reduction = 'sum')
+	real_loss = F.binary_cross_entropy_with_logits(pred_real, y_real)
+	fake_loss = F.binary_cross_entropy_with_logits(pred_fake, y_fake)
 
 	return real_loss + fake_loss
