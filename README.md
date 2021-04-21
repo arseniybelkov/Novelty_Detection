@@ -32,6 +32,11 @@ There F1-scores for different parameter _tau_ values:
 ![Tau = 0.5](./assets/0.5.png)    
 
 Also _Wasserstein loss_ was used:  
-RMSprop(alpha=0.9), lr = 0.001 |  RMSprop(alpha=0.9), lr = 0.0001 | Adam(betas=(0.9,0.999)), lr = 0.0001
+GAN loss, RMSprop(alpha=0.9), lr = 0.001 |GAN loss, RMSprop(alpha=0.9), lr = 0.0001 |Wasserstein loss, Adam(betas=(0.9,0.999)), lr = 0.0001
 :-------------------------:|:-------------------------:|:-------------------------:
-![RMSprop, lr = 0.001](./assets/rec_loss_gan0.001.jpg)|![RMSprop, lr = 0.0001](./assets/rec_loss_0.0001.jpg)|![Adam, lr = 0.0001](./assets/rec_loss_0.0001.jpg)  
+![RMSprop, lr = 0.001](./assets/rec_loss_gan0.001.jpg)|![RMSprop, lr = 0.0001](./assets/rec_loss_0.0001.jpg)|![Adam, lr = 0.0001](./assets/rec_loss_ws.jpg)  
+
+# References  
+- [Adversarially Learned One-Class Classifier for Novelty Detection](https://arxiv.org/abs/1802.09088)  
+- [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)  
+- [Wasserstein GAN](https://arxiv.org/abs/1701.07875)
