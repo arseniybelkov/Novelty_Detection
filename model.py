@@ -23,13 +23,12 @@ class Dataset(torch.utils.data.Dataset):
 	def __len__(self):
 		return len(self.indexes)
 	
-	def __getitem__(self, idx):
+	def __getitem__(self, idx: int):
 		return self.dataset[self.indexes[idx]]
-
 
 class R_Net(torch.nn.Module):
 
-	def __init__(self, activation = torch.nn.SELU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5, std = 1):
+	def __init__(self, activation = torch.nn.LeakyReLU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5, std:float = 1.0):
 
 		super(R_Net, self).__init__()
 
@@ -65,9 +64,9 @@ class R_Net(torch.nn.Module):
 											torch.nn.BatchNorm2d(self.in_channels),
 											self.activation())
 
-	def forward(self, x):
+	def forward(self, x, noise = True):
 
-		x_hat = self.add_noise(x)
+		x_hat = self.add_noise(x) if noise else x
 		z = self.Encoder(x_hat)
 		x_out = self.Decoder(z)
 
@@ -80,10 +79,9 @@ class R_Net(torch.nn.Module):
 
 		return x_hat
 
-
 class D_Net(torch.nn.Module):
 
-	def __init__(self, in_resolution:tuple, activation = torch.nn.SELU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5):
+	def __init__(self, in_resolution:tuple, activation = torch.nn.LeakyReLU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5):
 
 		super(D_Net, self).__init__()
 
@@ -134,7 +132,6 @@ class D_Net(torch.nn.Module):
 
 		return out
 
-
 def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, lambd: float) -> dict:
 
 	pred = d_net(x_fake)
@@ -146,7 +143,6 @@ def R_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, l
 	L_r = gen_loss + lambd * rec_loss
 
 	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss, 'L_r' : L_r}
-
 
 def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -> torch.Tensor:
 
@@ -160,3 +156,25 @@ def D_Loss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -
 	fake_loss = F.binary_cross_entropy_with_logits(pred_fake, y_fake)
 
 	return real_loss + fake_loss
+
+# Wasserstein GAN loss (https://arxiv.org/abs/1701.07875)
+
+def R_WLoss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor, lambd: float) -> dict:
+
+	pred = torch.sigmoid(d_net(x_fake))
+
+	rec_loss = F.mse_loss(x_fake, x_real)
+	gen_loss = -torch.mean(pred) # Wasserstein G loss: - E[ D(G(x)) ]
+
+	L_r = gen_loss + lambd * rec_loss
+
+	return {'rec_loss' : rec_loss, 'gen_loss' : gen_loss, 'L_r' : L_r}
+
+def D_WLoss(d_net: torch.nn.Module, x_real: torch.Tensor, x_fake: torch.Tensor) -> torch.Tensor:
+
+	pred_real = torch.sigmoid(d_net(x_real))
+	pred_fake = torch.sigmoid(d_net(x_fake.detach()))
+	
+	dis_loss = -torch.mean(pred_real) + torch.mean(pred_fake) # Wasserstein D loss: -E[D(x_real)] + E[D(x_fake)]
+
+	return dis_loss
