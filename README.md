@@ -26,7 +26,7 @@ The list of arguments of ```main.py```:
 
 ## Results  
 The model was trained to recognize pictures of _1_ as inliers and others as outliers.  
-It was trained using _RMSprop_ with _learning rate_ of 0.0001 and _weight decay_ of 1e-9. 
+It was trained using _RMSprop_ with _learning rate_ of 0.0001 and _weight decay_ of 1e-9.  
 Some examples of model perfomance:  
 X           |  R(X)
 :-------------------------:|:-------------------------:
