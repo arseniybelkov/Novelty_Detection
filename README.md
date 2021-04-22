@@ -27,16 +27,12 @@ The list of arguments of ```main.py```:
 ## Results  
 The model was trained to recognize pictures of _1_ as inliers and others as outliers.  
 It was trained using _RMSprop_ with _learning rate_ of 0.0001 and _weight decay_ of 1e-9.  
-Some examples of model perfomance:  
-X           |  R(X)
-:-------------------------:|:-------------------------:
-![1](./assets/1.jpg) | ![1](./assets/1rec.jpg)  
-![1](./assets/2.jpg) | ![1](./assets/2rec.jpg)  
-![1](./assets/3.jpg) | ![1](./assets/3rec.jpg)  
-![1](./assets/6.jpg) | ![1](./assets/6rec.jpg)  
-![1](./assets/7.jpg) | ![1](./assets/7rec.jpg)  
+There are some examples of model perfomance:  
+X    | ![1](./assets/1.jpg) | ![1](./assets/2.jpg) | ![1](./assets/3.jpg) | ![1](./assets/6.jpg) | ![1](./assets/7.jpg)
+:---:|:--------------------:|:--------------------:|:--------------------:|:--------------------:|:--------------------:
+R(X) | ![1](./assets/1rec.jpg) | ![1](./assets/2rec.jpg) | ![1](./assets/3rec.jpg) | ![1](./assets/6rec.jpg) | ![1](./assets/7rec.jpg)  
 
-There F1-scores for different parameter _tau_ values:  
+There are F1-scores for different parameter _tau_ values:  
 ![Tau = 0.3](./assets/0.3.png)  
 ![Tau = 0.4](./assets/0.4.png)  
 ![Tau = 0.5](./assets/0.5.png)    
