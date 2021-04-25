@@ -50,7 +50,7 @@ def main(args):
 		d_net = torch.load(d_net_path).to(device)
 		print(f'Loaded D_Net from {d_net_path}')
 	else:
-		r_net = R_Net(in_channels = 1, std = args.std).to(device)
+		r_net = R_Net(in_channels = 1, std = args.std, skip = args.res, cat = args.cat).to(device)
 		d_net = D_Net(in_resolution = (28, 28), in_channels = 1).to(device)
 		print('Created models')
 	
@@ -82,6 +82,8 @@ if __name__ == "__main__":
 	parser.add_argument('--sstep', type=int, default=5, help='Step in epochs for saving models')
 	parser.add_argument('--std', type=float, default=0.155, help='Standart deviation for noise in R_Net')
 	parser.add_argument('--lambd', type=float, default=0.2, help='Lambda parameter for LR loss')
+	parser.add_argument('--cat', action='store_true', help='Turns on skip connections with concatenation')
+	parser.add_argument('--res', action='store_true', help='Turns on residual connections')
 	args = parser.parse_args()
 
 	main(args)

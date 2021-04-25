@@ -26,9 +26,24 @@ class Dataset(torch.utils.data.Dataset):
 	def __getitem__(self, idx: int):
 		return self.dataset[self.indexes[idx]]
 
+class ModuleList(torch.nn.ModuleList):
+
+	def forward(self, x:torch.Tensor, res_connections:list=[], cat:bool=False):
+		connections = []
+		for i, module in enumerate(self):
+			if i % 3 == 0 and not bool(res_connections):
+				x = module(x)
+				connections.append(x)
+			elif i % 3 == 0 and bool(res_connections):
+				x = module(torch.cat((x, res_connections[i//3]), dim = 1)) if cat else module(x + res_connections[i//3])
+			else:
+				x = module(x)
+		return x, connections
+
 class R_Net(torch.nn.Module):
 
-	def __init__(self, activation = torch.nn.LeakyReLU, in_channels:int = 3, n_channels:int = 64, kernel_size:int = 5, std:float = 1.0):
+	def __init__(self, activation = torch.nn.LeakyReLU, in_channels:int = 3, n_channels:int = 64,
+					kernel_size:int = 5, std:float = 1.0, skip:bool = False, cat:bool = False):
 
 		super(R_Net, self).__init__()
 
@@ -37,8 +52,17 @@ class R_Net(torch.nn.Module):
 		self.n_c = n_channels
 		self.k_size = kernel_size
 		self.std = std
+		self.cat = cat
+		self.skip = skip if self.cat is False else False
 
-		self.Encoder = torch.nn.Sequential(torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size, bias = False),
+		if self.skip:
+			print('Turn on res connections')
+		elif self.cat:
+			print('Turn on concat skip')
+		else:
+			print('No skip connections')
+
+		self.Encoder = ModuleList([torch.nn.Conv2d(self.in_channels, self.n_c, self.k_size, bias = False),
 											torch.nn.BatchNorm2d(self.n_c),
 											self.activation(),
 											torch.nn.Conv2d(self.n_c, self.n_c*2, self.k_size, bias = False),
@@ -49,26 +73,34 @@ class R_Net(torch.nn.Module):
 											self.activation(),
 											torch.nn.Conv2d(self.n_c*4, self.n_c*8, self.k_size, bias = False),
 											torch.nn.BatchNorm2d(self.n_c*8),
-											self.activation())
+											self.activation()])
 
-		self.Decoder = torch.nn.Sequential(torch.nn.ConvTranspose2d(self.n_c*8, self.n_c*4, self.k_size, bias = False),
-											torch.nn.BatchNorm2d(self.n_c*4),
+		self.n_c = self.n_c * 2 if self.cat else self.n_c
+
+		self.Decoder = ModuleList([torch.nn.ConvTranspose2d(self.n_c*8, n_channels*4, self.k_size, bias = False),
+											torch.nn.BatchNorm2d(n_channels*4),
 											self.activation(),
-											torch.nn.ConvTranspose2d(self.n_c*4, self.n_c*2, self.k_size, bias = False),
-											torch.nn.BatchNorm2d(self.n_c*2),
+											torch.nn.ConvTranspose2d(self.n_c*4, n_channels*2, self.k_size, bias = False),
+											torch.nn.BatchNorm2d(n_channels*2),
 											self.activation(),
-											torch.nn.ConvTranspose2d(self.n_c*2, self.n_c, self.k_size, bias = False),
-											torch.nn.BatchNorm2d(self.n_c),
+											torch.nn.ConvTranspose2d(self.n_c*2, n_channels, self.k_size, bias = False),
+											torch.nn.BatchNorm2d(n_channels),
 											self.activation(),
 											torch.nn.ConvTranspose2d(self.n_c, self.in_channels, self.k_size, bias = False),
 											torch.nn.BatchNorm2d(self.in_channels),
-											self.activation())
+											self.activation()])
 
-	def forward(self, x, noise = True):
+	def forward(self, x:torch.Tensor, noise:bool = True):
 
 		x_hat = self.add_noise(x) if noise else x
-		z = self.Encoder(x_hat)
-		x_out = self.Decoder(z)
+		z, res_connections = self.Encoder.forward(x_hat)
+
+		res_connections.reverse()
+
+		if self.skip or self.cat:
+			x_out, _ = self.Decoder.forward(z, res_connections, self.cat)
+		else:
+			x_out, _ = self.Decoder.forward(z)
 
 		return x_out
 
@@ -122,7 +154,7 @@ class D_Net(torch.nn.Module):
 
 		return out_dim
 
-	def forward(self, x):
+	def forward(self, x:torch.Tensor):
 
 		x = self.cnn(x)
 

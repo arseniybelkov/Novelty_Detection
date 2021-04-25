@@ -23,6 +23,8 @@ The list of arguments of ```main.py```:
 - --sstep - step in epoch for saving the model  
 - --std - standart deviation for noise for training  
 - --lambd - lambda parameter for LR loss  
+- --res - enables residual connections
+- --cat - enables skip connections via concatenation  
 
 ## Results  
 The model was trained to recognize pictures of _1_ as inliers and others as outliers.  
@@ -37,12 +39,25 @@ There are F1-scores for different parameter _tau_ values:
 ![Tau = 0.4](./assets/0.4.png)  
 ![Tau = 0.5](./assets/0.5.png)    
 
-Also _Wasserstein loss_ was used:  
+#### Wasserstein loss  
 GAN loss, RMSprop(alpha=0.9), lr = 0.001 |GAN loss, RMSprop(alpha=0.9), lr = 0.0001 |Wasserstein loss, Adam(betas=(0.9,0.999)), lr = 0.0001
 :-------------------------:|:-------------------------:|:-------------------------:
 ![RMSprop, lr = 0.001](./assets/rec_loss_gan0.001.jpg)|![RMSprop, lr = 0.0001](./assets/rec_loss_0.0001.jpg)|![Adam, lr = 0.0001](./assets/rec_loss_ws.jpg)  
 
-# References  
+#### Skip connections  
+![R_skip](./assets/R_skip.jpg)  
+Residual connections and concatenation were tried. In both cases arrows on the picture above means concatenation or residual connections.  
+In the case of concatenation, number of channels in each decoder layer, except the output, is doubled.  
+Using residual connections slighlty improves convergence of refinement loss.  
+Applying both methods strongly enhances R network, so it becomes very powerful and discriminator can't cope with it.  
+There are some rather immature training results:  
+Concatenation | Residual connections  
+:-------------------:|:-------------:  
+![Concat](./assets/rec_loss_cat.jpg) | ![Res connect](./assets/rec_loss_res.jpg)  
+:-------------------:|:-------------:
+![F1-score_cat](./assets/f1cat.jpg) | ![F1-score_res](./assets/f1res.jpg)  
+
+# Literature  
 - [Adversarially Learned One-Class Classifier for Novelty Detection](https://arxiv.org/abs/1802.09088)  
 - [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)  
 - [Wasserstein GAN](https://arxiv.org/abs/1701.07875)
