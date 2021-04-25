@@ -54,7 +54,7 @@ There are some rather immature training results:
 Concatenation | Residual connections  
 :---------------:|:-------------:  
 ![Concat](./assets/rec_loss_cat.jpg) | ![Res connect](./assets/rec_loss_res.jpg)  
-![F1-score_cat](./assets/f1cat.jpg) | ![F1-score_res](./assets/f1res.png)   
+![F1-score_cat](./assets/f1cat.jpg) | ![F1-score_res](./assets/f1res.jpg)   
 
 # Literature  
 - [Adversarially Learned One-Class Classifier for Novelty Detection](https://arxiv.org/abs/1802.09088)  
